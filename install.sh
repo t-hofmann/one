@@ -275,9 +275,15 @@ VAR_DIRS="$VAR_LOCATION/remotes \
           $VAR_LOCATION/remotes/im \
           $VAR_LOCATION/remotes/im/lib \
           $VAR_LOCATION/remotes/im/kvm.d \
-          $VAR_LOCATION/remotes/im/kvm-probes.d \
+          $VAR_LOCATION/remotes/im/kvm-probes.d/host/monitor \
+          $VAR_LOCATION/remotes/im/kvm-probes.d/host/system \
+          $VAR_LOCATION/remotes/im/kvm-probes.d/vm/monitor \
+          $VAR_LOCATION/remotes/im/kvm-probes.d/vm/status \
           $VAR_LOCATION/remotes/im/lxd.d \
-          $VAR_LOCATION/remotes/im/lxd-probes.d \
+          $VAR_LOCATION/remotes/im/lxd-probes.d/host/monitor \
+          $VAR_LOCATION/remotes/im/lxd-probes.d/host/system \
+          $VAR_LOCATION/remotes/im/lxd-probes.d/vm/monitor \
+          $VAR_LOCATION/remotes/im/lxd-probes.d/vm/status \
           $VAR_LOCATION/remotes/im/vcenter.d \
           $VAR_LOCATION/remotes/im/ec2.d \
           $VAR_LOCATION/remotes/im/az.d \
@@ -453,9 +459,15 @@ INSTALL_FILES=(
     IM_PROBES_FILES:$VAR_LOCATION/remotes/im
     IM_PROBES_LIB_FILES:$VAR_LOCATION/remotes/im/lib
     IM_PROBES_KVM_FILES:$VAR_LOCATION/remotes/im/kvm.d
-    IM_PROBES_KVM_PROBES_FILES:$VAR_LOCATION/remotes/im/kvm-probes.d
+    IM_PROBES_KVM_HOST_MONITOR_FILES:$VAR_LOCATION/remotes/im/kvm-probes.d/host/monitor
+    IM_PROBES_KVM_HOST_SYSTEM_FILES:$VAR_LOCATION/remotes/im/kvm-probes.d/system/monitor
+    IM_PROBES_KVM_VM_MONITOR_FILES:$VAR_LOCATION/remotes/im/kvm-probes.d/vm/monitor
+    IM_PROBES_KVM_VM_STATUS_FILES:$VAR_LOCATION/remotes/im/kvm-probes.d/vm/status
     IM_PROBES_ETC_KVM_PROBES_FILES:$VAR_LOCATION/remotes/etc/im/kvm-probes.d
-    IM_PROBES_LXD_FILES:$VAR_LOCATION/remotes/im/lxd.d
+    IM_PROBES_LXD_HOST_MONITOR_FILES:$VAR_LOCATION/remotes/im/lxd-probes.d/host/monitor
+    IM_PROBES_LXD_HOST_SYSTEM_FILES:$VAR_LOCATION/remotes/im/lxd-probes.d/system/monitor
+    IM_PROBES_LXD_VM_MONITOR_FILES:$VAR_LOCATION/remotes/im/lxd-probes.d/vm/monitor
+    IM_PROBES_LXD_VM_STATUS_FILES:$VAR_LOCATION/remotes/im/lxd-probes.d/vm/status
     IM_PROBES_LXD_PROBES_FILES:$VAR_LOCATION/remotes/im/lxd-probes.d
     IM_PROBES_ETC_LXD_PROBES_FILES:$VAR_LOCATION/remotes/etc/im/lxd-probes.d
     IM_PROBES_VCENTER_FILES:$VAR_LOCATION/remotes/im/vcenter.d
@@ -1069,13 +1081,17 @@ IM_PROBES_LIB_FILES="\
     src/im_mad/remotes/lib/poll_common.rb \
     src/im_mad/remotes/lib/probe_db.rb"
 
+# KVM PROBES
 IM_PROBES_KVM_FILES="\
     src/im_mad/remotes/kvm.d/collectd-client_control.sh \
     src/im_mad/remotes/kvm.d/collectd-client.rb"
 
-IM_PROBES_KVM_PROBES_FILES="\
+IM_PROBES_KVM_HOST_MONITOR_FILES="\
      src/im_mad/remotes/kvm-probes.d/host/monitor/linux_usage.rb \
      src/im_mad/remotes/kvm-probes.d/host/monitor/numa_usage.rb \
+     src/im_mad/remotes/common.d/collectd-client-shepherd.sh"
+
+IM_PROBES_KVM_HOST_SYSTEM_FILES="\
      src/im_mad/remotes/kvm-probes.d/host/system/architecture.sh \
      src/im_mad/remotes/kvm-probes.d/host/system/cpu.sh \
      src/im_mad/remotes/kvm-probes.d/host/system/linux_host.rb \
@@ -1084,18 +1100,29 @@ IM_PROBES_KVM_PROBES_FILES="\
      src/im_mad/remotes/kvm-probes.d/host/system/name.sh \
      src/im_mad/remotes/kvm-probes.d/host/system/numa_host.rb \
      src/im_mad/remotes/kvm-probes.d/host/system/pci.rb \
-     src/im_mad/remotes/kvm-probes.d/host/system/version.sh \
-     src/im_mad/remotes/kvm-probes.d/vms/monitor/poll.rb \
-     src/im_mad/remotes/kvm-probes.d/vms/status/status.rb \
-     src/im_mad/remotes/common.d/collectd-client-shepherd.sh"
+     src/im_mad/remotes/kvm-probes.d/host/system/version.sh"
+
+IM_PROBES_KVM_VM_MONITOR_FILES="\
+     src/im_mad/remotes/kvm-probes.d/vms/monitor/poll.rb"
+
+IM_PROBES_KVM_VM_STATUS_FILES="\
+     src/im_mad/remotes/kvm-probes.d/vms/status/status.rb"
 
 IM_PROBES_ETC_KVM_PROBES_FILES="\
     src/im_mad/remotes/kvm-probes.d/pci.conf \
     src/im_mad/remotes/lib/probe_db.conf"
 
-IM_PROBES_LXD_PROBES_FILES="\
+# LXD PROBES
+IM_PROBES_LXD_FILES="\
+    src/im_mad/remotes/lxd.d/collectd-client_control.sh \
+    src/im_mad/remotes/lxd.d/collectd-client.rb"
+
+IM_PROBES_LXD_HOST_MONITOR_FILES="\
      src/im_mad/remotes/lxd-probes.d/host/monitor/linux_usage.rb \
      src/im_mad/remotes/lxd-probes.d/host/monitor/numa_usage.rb \
+     src/im_mad/remotes/lxd-probes.d/collectd-client-shepherd.sh"
+
+IM_PROBES_LXD_HOST_SYSTEM_FILES="\
      src/im_mad/remotes/lxd-probes.d/host/system/architecture.sh \
      src/im_mad/remotes/lxd-probes.d/host/system/cpu.sh \
      src/im_mad/remotes/lxd-probes.d/host/system/linux_host.rb \
@@ -1104,14 +1131,13 @@ IM_PROBES_LXD_PROBES_FILES="\
      src/im_mad/remotes/lxd-probes.d/host/system/numa_host.rb \
      src/im_mad/remotes/lxd-probes.d/host/system/pci.rb \
      src/im_mad/remotes/lxd-probes.d/host/system/profiles.sh \
-     src/im_mad/remotes/lxd-probes.d/host/system/version.sh \
-     src/im_mad/remotes/lxd-probes.d/vms/monitor/poll.rb \
-     src/im_mad/remotes/lxd-probes.d/vms/status/status.rb \
-     src/im_mad/remotes/lxd-probes.d/collectd-client-shepherd.sh"
+     src/im_mad/remotes/lxd-probes.d/host/system/version.sh"
 
-IM_PROBES_LXD_FILES="\
-    src/im_mad/remotes/lxd.d/collectd-client_control.sh \
-    src/im_mad/remotes/lxd.d/collectd-client.rb"
+IM_PROBES_LXD_VM_MONITOR_FILES="\
+     src/im_mad/remotes/lxd-probes.d/vms/monitor/poll.rb"
+
+IM_PROBES_LXD_VM_STATUS_FILES="\
+     src/im_mad/remotes/lxd-probes.d/vms/status/status.rb"
 
 IM_PROBES_ETC_LXD_PROBES_FILES="\
     src/im_mad/remotes/lxd-probes.d/pci.conf \
