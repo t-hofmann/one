@@ -30,6 +30,8 @@ void MonitorConfigTemplate::set_conf_default()
  LOG
  DB
  UDP_LISTENER
+ PROBES_PERIOD
+ DATASTORE_LOCATION
  */
     set_conf_single("MESSAGE_SIZE", "1073741824");
     set_conf_single("XMLRPC_TIMEOU", "60");
@@ -49,6 +51,12 @@ void MonitorConfigTemplate::set_conf_default()
     va = new VectorAttribute("UDP_LISTENER", {{"ADDRESS", "0.0.0.0"},
             {"PORT", "4124"}, {"THREADS", "16"}});
     conf_default.insert(make_pair(va->name(), va));
+
+    va = new VectorAttribute("PROBES_PERIOD", {{"SYSTEM_HOST", "600"},
+            {"MONITOR_HOST", "120"}, {"MONITOR_VM", "90"}, {"STATUS_VM", "10"}});
+    conf_default.insert(make_pair(va->name(), va));
+
+    set_conf_single("DATASTORE_LOCATION", "/var/lib/one/datastores");
 }
 
 /* -------------------------------------------------------------------------- */

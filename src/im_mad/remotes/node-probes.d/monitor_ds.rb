@@ -15,16 +15,14 @@
 # See the License for the specific language governing permissions and        #
 # limitations under the License.                                             #
 #--------------------------------------------------------------------------- #
-
-require 'yaml'
+require 'rexml/document'
 require 'fileutils'
 
-yaml = YAML.load(STDIN.read).to_hash
-
+# This class abstract the monitor of host datastores
 class DSMonitor
 
-    def initialize(probe_args)
-        @ds_location = probe_args[:ds_location]
+    def initialize(config)
+        @ds_location = config.elements['DATASTORE_LOCATION'].text.to_s
         @ds_location ||= '/var/lib/one/datastores'
         FileUtils.mkdir_p @ds_location
     end
@@ -64,12 +62,12 @@ class DSMonitor
 
     def usage(ds_id)
         string = <<EOT
-DS = [
-  ID = #{ds_id},
-  #{total(ds_id)},
-  #{used(ds_id)},
-  #{free(ds_id)}
-]
+        DS = [
+          ID = #{ds_id},
+          #{total(ds_id)},
+          #{used(ds_id)},
+          #{free(ds_id)}
+        ]
 EOT
         string
     end
@@ -99,5 +97,17 @@ EOT
 
 end
 
-monitor = DSMonitor.new yaml
+#-------------------------------------------------------------------------------
+# Probe main program
+#-------------------------------------------------------------------------------
+
+begin
+    xml_txt = STDIN.read
+    config = REXML::Document.new(xml_txt).root
+rescue StandardError => e
+    puts e.inspect
+    exit(-1)
+end
+
+monitor = DSMonitor.new config
 monitor.dss_metrics

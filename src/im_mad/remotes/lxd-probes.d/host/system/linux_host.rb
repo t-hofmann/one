@@ -16,6 +16,6 @@
 # limitations under the License.                                             #
 #--------------------------------------------------------------------------- #
 
-require_relative '../lib/linux'
+require_relative '../../../lib/linux'
 
 LinuxHost.config('lxd')

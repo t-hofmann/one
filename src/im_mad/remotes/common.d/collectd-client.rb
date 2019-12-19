@@ -92,32 +92,32 @@ end
 #
 class ProbeRunner
 
-    def initialize(hyperv, path)
-        @path = File.join(File.dirname(__FILE__), '..', "#{hyperv}-probes.d",
+    def initialize(hyperv, path, stdin)
+        @path  = File.join(File.dirname(__FILE__), '..', "#{hyperv}-probes.d",
                           path)
+        @stdin = stdin
     end
 
     def run_probes
-        cwd_bck = Dir.pwd
-        Dir.chdir(@path)
-
         data = ''
 
         Dir.each_child(@path) do |probe|
-            next unless File.executable?(probe)
+            probe_path = File.join(@path, probe)
 
-            data += `./#{probe} 2>&1`
+            next unless File.executable?(probe_path)
 
-            return [-1, "Error executing #{probe}"] if $?.exitstatus != 0
+            o, e, s = Open3.capture3(probe_path, :stdin_data => @stdin)
+
+            data += o
+
+            return [-1, "Error executing #{probe}: #{e}"] if s.exitstatus != 0
         end
-
-        Dir.chdir(cwd_bck)
 
         [0, data]
     end
 
-    def self.monitor_loop(hyperv, path, period, &block)
-        runner = ProbeRunner.new(hyperv, path)
+    def self.monitor_loop(hyperv, path, period, stdin, &block)
+        runner = ProbeRunner.new(hyperv, path, stdin)
 
         loop do
             ts = Time.now
@@ -159,16 +159,15 @@ begin
         },
 
         :state_vm => {
-            :period => config.elements['PROBE_PERIOD/VMS'].text.to_s,
+            :period => config.elements['PROBE_PERIOD/STATUS_VM'].text.to_s,
             :path => 'vm/status'
         },
 
         :monitor_vm => {
-            :period => config.elements['PROBE_PERIOD/VMM'].text.to_s,
+            :period => config.elements['PROBE_PERIOD/MONITOR_VM'].text.to_s,
             :path => 'vm/monitor'
         },
     }
-
 rescue StandardError => e
     puts e.inspect
     exit(-1)
@@ -188,14 +187,10 @@ threads = []
 
 probes.each do |msg_type, conf|
     threads << Thread.new {
-        ProbeRunner.monitor_loop(hyperv, conf[:path], conf[:period]) do |rc, da|
+        ProbeRunner.monitor_loop(hyperv, conf[:path], conf[:period], xml_txt) do |rc, da|
             client.send(msg_type, rc, da)
         end
     }
 end
 
-threads << Thread.new do
-    sleep 60
-    `#{__dir__}/../#{hypervisor}-probes.d/collectd-client-shepherd.sh`
-end
 threads.each {|thr| thr.join }
