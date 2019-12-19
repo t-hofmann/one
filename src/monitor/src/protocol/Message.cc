@@ -231,8 +231,8 @@ int zlib_compress(const std::string& in, std::string& out)
 
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
-static string pubk_path;
-static string prik_path;
+static std::string pubk_path;
+static std::string prik_path;
 
 void init_rsa_keys(const std::string& pub_key, const std::string& pri_key)
 {
