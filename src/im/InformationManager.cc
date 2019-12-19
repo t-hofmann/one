@@ -159,7 +159,7 @@ void InformationManager::_undefined(unique_ptr<Message<OpenNebulaMessages>> msg)
 
 void InformationManager::_host_state(unique_ptr<Message<OpenNebulaMessages>> msg)
 {
-    NebulaLog::warn("InM", "Received host_state message: " + msg->payload());
+    NebulaLog::debug("InM", "Received host_state message: " + msg->payload());
 
     string str_state = msg->payload();
     Host::HostState new_state;
@@ -196,97 +196,43 @@ void InformationManager::_host_state(unique_ptr<Message<OpenNebulaMessages>> msg
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
+void InformationManager::_system_host(unique_ptr<Message<OpenNebulaMessages>> msg)
+{
+    NebulaLog::debug("InM", "Received SYSTEM_HOST message id: " + msg->oid());
+
+    Host* host = hpool->get(msg->oid());
+
+    if (host == nullptr)
+    {
+        return;
+    }
+
+    char * error_msg;
+    Template tmpl;
+    int rc = tmpl.parse(msg->payload(), &error_msg);
+
+    if (rc != 0)
+    {
+        NebulaLog::error("InM", string("Error parsing monitoring template: ")
+                + error_msg);
+
+        free(error_msg);
+        return;
+    }
+
+    host->update_info(tmpl);
+
+    hpool->update(host);
+
+    host->unlock();
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
 void InformationManager::timer_action(const ActionRequest& ar)
 {
-    /*
-    static int mark = 0;
 
-    int    rc;
-    time_t now;
-
-    set<int>           discovered_hosts;
-    set<int>::iterator it;
-
-
-    Host * host;
-
-    time_t monitor_length;
-    time_t target_time;
-
-    mark = mark + timer_period;
-
-    if ( mark >= 600 )
-    {
-        NebulaLog::log("InM",Log::INFO,"--Mark--");
-        mark = 0;
-    }
-
-    Nebula& nd          = Nebula::instance();
-    RaftManager * raftm = nd.get_raftm();
-
-    if ( !raftm->is_leader() && !raftm->is_solo() && !nd.is_cache() )
-    {
-        return;
-    }
-
-    hpool->clean_expired_monitoring();
-
-    now = time(0);
-
-    target_time = now - monitor_period;
-
-    rc = hpool->discover(&discovered_hosts, host_limit, target_time);
-
-    if ((rc != 0) || (discovered_hosts.empty() == true))
-    {
-        return;
-    }
-
-    for( it=discovered_hosts.begin() ; it!=discovered_hosts.end() ; ++it )
-    {
-        host = hpool->get(*it);
-
-        if (host == 0)
-        {
-            continue;
-        }
-
-        monitor_length = now - host->get_last_monitored();
-
-        switch (host->get_state())
-        {
-            // Not received an update in the monitor period.
-            case Host::INIT:
-            case Host::MONITORED:
-            case Host::ERROR:
-            case Host::DISABLED:
-                start_monitor(host, (host->get_last_monitored() == 0));
-                break;
-
-            // Update last_mon_time to rotate HostPool::discover output. Update
-            // monitoring values with 0s.
-            case Host::OFFLINE:
-                host->touch(true);
-                hpool->update_monitoring(host);
-                break;
-
-            // Host is being monitored for more than monitor_expire secs.
-            case Host::MONITORING_DISABLED:
-            case Host::MONITORING_INIT:
-            case Host::MONITORING_ERROR:
-            case Host::MONITORING_MONITORED:
-                if (monitor_length >= monitor_expire )
-                {
-                    start_monitor(host, (host->get_last_monitored() == 0));
-                }
-                break;
-        }
-
-        hpool->update(host);
-
-        host->unlock();
-    }
-    */
 }
 
 /* -------------------------------------------------------------------------- */

@@ -18,6 +18,7 @@
 
 #include "NebulaLog.h"
 #include "HostMonitorManager.h"
+#include "OneMonitorDriver.h"
 
 HostMonitorManager * MonitorDriverProtocol::hm = nullptr;
 
@@ -70,7 +71,8 @@ void MonitorDriverProtocol::_monitor_host(message_t msg)
 
 void MonitorDriverProtocol::_system_host(message_t msg)
 {
-
+    auto oned = hm->get_oned_driver();
+    oned->host_system_info(msg->oid(), msg->status(), msg->payload());
 }
 
 /* -------------------------------------------------------------------------- */

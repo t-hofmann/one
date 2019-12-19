@@ -104,6 +104,11 @@ protected:
      */
     void _host_state(unique_ptr<Message<OpenNebulaMessages>> msg);
 
+    /**
+     *  Message SYSTEM_HOST update from monitor
+     */
+    void _system_host(unique_ptr<Message<OpenNebulaMessages>> msg);
+
 private:
     /**
      *  Thread for the Information Manager

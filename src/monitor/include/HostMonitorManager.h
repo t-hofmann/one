@@ -48,6 +48,8 @@ public:
 
     ~HostMonitorManager();
 
+    OneMonitorDriver* get_oned_driver() const { return oned_driver; }
+
     //--------------------------------------------------------------------------
     //  Driver Interface
     //--------------------------------------------------------------------------

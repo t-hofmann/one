@@ -61,6 +61,22 @@ void OneMonitorDriver::host_state(int oid, const std::string& state)
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
+void OneMonitorDriver::host_system_info(int oid, const std::string& status,
+        const std::string& payload)
+{
+    Message<OpenNebulaMessages> oned_msg;
+
+    oned_msg.type(OpenNebulaMessages::SYSTEM_HOST);
+    oned_msg.oid(oid);
+    oned_msg.status(status);
+    oned_msg.payload(payload);
+
+    write2one(oned_msg);
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
 void OneMonitorDriver::_undefined(message_t msg)
 {
     NebulaLog::info("MON", "Received UNDEFINED msg: " + msg->payload());
@@ -71,7 +87,6 @@ void OneMonitorDriver::_undefined(message_t msg)
 
 void OneMonitorDriver::_host_list(message_t msg)
 {
-    NebulaLog::debug("OMD", "host_list:" + msg->payload());
     ObjectXML xml(msg->payload());
 
     vector<xmlNodePtr> nodes;

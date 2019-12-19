@@ -37,6 +37,14 @@ public:
      */
     void host_state(int oid, const std::string& state);
 
+    /**
+     *  Send host system information to oned
+     *    @param oid host id
+     *    @param status result of the system monitor
+     *    @param payload system data
+     */
+    void host_system_info(int oid, const std::string& status, const std::string& payload);
+
 private:
     using message_t = std::unique_ptr<Message<OpenNebulaMessages>>;
 
