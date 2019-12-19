@@ -157,21 +157,16 @@ begin
             :period => config.elements['PROBE_PERIOD/MONITOR_HOST'].text.to_s,
             :path => 'host/monitor'
         },
-        
-        :status_vms => {
+
+        :state_vm => {
             :period => config.elements['PROBE_PERIOD/VMS'].text.to_s,
-            :path => 'vms/status'
+            :path => 'vm/status'
         },
 
-        :monitor_vms => {
+        :monitor_vm => {
             :period => config.elements['PROBE_PERIOD/VMM'].text.to_s,
-            :path => 'vms/monitor'
+            :path => 'vm/monitor'
         },
-
-        :datastore => {
-            :period => config.elements['PROBE_PERIOD/DATASTORE'].text.to_s,
-            :path => 'datastore'
-        }
     }
 
 rescue StandardError => e
@@ -192,7 +187,7 @@ client = MonitorClient.new(host, port, 0, :pubkey => pubkey)
 threads = []
 
 probes.each do |msg_type, conf|
-    threads << Thread.new { 
+    threads << Thread.new {
         ProbeRunner.monitor_loop(hyperv, conf[:path], conf[:period]) do |rc, da|
             client.send(msg_type, rc, da)
         end
