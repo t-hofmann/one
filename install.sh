@@ -1080,7 +1080,7 @@ IM_PROBES_KVM_PROBES_FILES="\
      src/im_mad/remotes/kvm-probes.d/host/system/cpu.sh \
      src/im_mad/remotes/kvm-probes.d/host/system/linux_host.rb \
      src/im_mad/remotes/kvm-probes.d/host/system/machines_models.rb \
-     src/im_mad/remotes/kvm-probes.d/datastore/monitor_ds.rb \
+     src/im_mad/remotes/kvm-probes.d/host/system/monitor_ds.rb \
      src/im_mad/remotes/kvm-probes.d/host/system/name.sh \
      src/im_mad/remotes/kvm-probes.d/host/system/numa_host.rb \
      src/im_mad/remotes/kvm-probes.d/host/system/pci.rb \
@@ -1099,7 +1099,7 @@ IM_PROBES_LXD_PROBES_FILES="\
      src/im_mad/remotes/lxd-probes.d/host/system/architecture.sh \
      src/im_mad/remotes/lxd-probes.d/host/system/cpu.sh \
      src/im_mad/remotes/lxd-probes.d/host/system/linux_host.rb \
-     src/im_mad/remotes/lxd-probes.d/datastore/monitor_ds.rb \
+     src/im_mad/remotes/lxd-probes.d/host/system/monitor_ds.rb \
      src/im_mad/remotes/lxd-probes.d/host/system/name.sh \
      src/im_mad/remotes/lxd-probes.d/host/system/numa_host.rb \
      src/im_mad/remotes/lxd-probes.d/host/system/pci.rb \
