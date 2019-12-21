@@ -43,8 +43,8 @@ void MonitorDriverProtocol::_monitor_vm(message_t msg)
 
 void MonitorDriverProtocol::_monitor_host(message_t msg)
 {
-    NebulaLog::ddebug("MDP", "Received monitoring for host: " +
-            to_string(msg->oid()));
+    NebulaLog::ddebug("MDP", "Received monitoring for host " +
+            to_string(msg->oid()) + ": " + msg->payload());
 
     std::string msg_str = msg->payload();
     char * error_msg;
@@ -88,10 +88,21 @@ void MonitorDriverProtocol::_state_vm(message_t msg)
 
 void MonitorDriverProtocol::_start_monitor(message_t msg)
 {
+    NebulaLog::ddebug("MDP", "Received start monitor for host " +
+            to_string(msg->oid()) + ": " + msg->payload());
+
     if (msg->status() != "SUCCESS")
     {
         hm->start_monitor_failure(msg->oid());
+
+        NebulaLog::warn("MDP", "Start monitor failed for host " +
+            to_string(msg->oid()) + ": " + msg->payload());
     }
+
+    auto oned = hm->get_oned_driver();
+    oned->host_system_info(msg->oid(), msg->status(), msg->payload());
+
+    hm->start_monitor_success(msg->oid());
 }
 
 /* -------------------------------------------------------------------------- */

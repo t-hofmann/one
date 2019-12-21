@@ -208,7 +208,7 @@ threads = []
 probes.each do |msg_type, conf|
     threads << Thread.new {
         ProbeRunner.monitor_loop(hyperv, conf[:path], conf[:period], xml_txt) do |rc, da|
-            client.send(msg_type, rc, da)
+            client.send(msg_type, rc == 0, da)
         end
     }
 end

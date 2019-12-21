@@ -237,21 +237,21 @@ void HostMonitorManager::monitor_host(int oid, bool result, Template &tmpl)
     if (monitoring.from_template(tmpl) != 0 || monitoring.oid() == -1)
     {
         string str;
-        NebulaLog::log("MON", Log::ERROR, "Error parsing monitoring template: "
+        NebulaLog::log("HMM", Log::ERROR, "Error parsing monitoring template: "
                 + tmpl.to_str(str));
         return;
     }
 
     if (hpool->update_monitoring(monitoring) != 0)
     {
-        NebulaLog::log("MON", Log::ERROR, "Unable to write monitoring to DB");
+        NebulaLog::log("HMM", Log::ERROR, "Unable to write monitoring to DB");
         return;
     };
 
     host->last_monitored(monitoring.timestamp());
     host->monitor_in_progress(false);
 
-    NebulaLog::info("MON", "Successfully monitored host: " + to_string(oid));
+    NebulaLog::info("HMM", "Successfully monitored host: " + to_string(oid));
 
     // Send host state update to oned
     if (host->state() != Host::HostState::MONITORED &&
@@ -263,6 +263,7 @@ void HostMonitorManager::monitor_host(int oid, bool result, Template &tmpl)
 
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
+
 void HostMonitorManager::start_monitor_failure(int oid)
 {
     NebulaLog::error("HMM", "Unable to monitor host id: " + to_string(oid));
@@ -275,6 +276,28 @@ void HostMonitorManager::start_monitor_failure(int oid)
     }
 
     oned_driver->host_state(oid, Host::state_to_str(Host::HostState::ERROR));
+
+    return;
+}
+
+/* -------------------------------------------------------------------------- */
+
+void HostMonitorManager::start_monitor_success(int oid)
+{
+    NebulaLog::info("HMM", "Successfully monitored host: " + to_string(oid));
+
+    auto host = hpool->get(oid);
+
+    if (!host.valid() || host->state() == Host::HostState::OFFLINE)
+    {
+        return;
+    }
+
+    host->last_monitored(time(nullptr));
+
+    host->monitor_in_progress(false);
+
+    oned_driver->host_state(oid, Host::state_to_str(Host::HostState::MONITORED));
 
     return;
 }

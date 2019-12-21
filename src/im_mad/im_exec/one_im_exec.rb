@@ -84,7 +84,9 @@ class InformationManagerDriver < OpenNebulaDriver
         do_action(im_mad, hostid, hostname,
                   :START_MONITOR,
                   :stdin => config,
-                  :script_name => 'run_probes')
+                  :script_name => 'run_probes',
+                  :zip => true,
+                  :base64 => true)
     rescue StandardError => e
         msg = Zlib::Deflate.deflate(e.message, Zlib::BEST_COMPRESSION)
         msg = Base64.encode64(msg).strip.delete("\n")

@@ -128,7 +128,9 @@ class OpenNebulaDriver < ActionManager
         result, info = get_info_from_execution(execution)
 
         if options[:respond]
+            info = Zlib::Deflate.deflate(info, Zlib::BEST_COMPRESSION) if options[:zip]
             info = Base64.strict_encode64(info) if options[:base64]
+
             send_message(aname, result, id, info)
         end
 
