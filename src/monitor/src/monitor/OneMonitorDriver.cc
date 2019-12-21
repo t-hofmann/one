@@ -79,7 +79,7 @@ void OneMonitorDriver::host_system_info(int oid, const std::string& status,
 
 void OneMonitorDriver::_undefined(message_t msg)
 {
-    NebulaLog::info("MON", "Received UNDEFINED msg: " + msg->payload());
+    NebulaLog::info("MDR", "Received UNDEFINED msg: " + msg->payload());
 }
 
 /* -------------------------------------------------------------------------- */

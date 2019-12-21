@@ -119,12 +119,12 @@ int HostShareDatastore::from_xml_node(const xmlNodePtr node)
         max_disk = 0;
     }
 
-    if (get("FREE_DISK", free_disk))
+    if ( !get("FREE_DISK", free_disk))
     {
         free_disk = 0;
     }
 
-    if (get("USED_DISK", used_disk))
+    if ( !get("USED_DISK", used_disk))
     {
         used_disk = 0;
     }
