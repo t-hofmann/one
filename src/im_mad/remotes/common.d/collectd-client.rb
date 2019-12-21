@@ -116,6 +116,11 @@ class ProbeRunner
         [0, data]
     end
 
+    def self.run_once(hyperv, path, stdin)
+        runner = ProbeRunner.new(hyperv, path, stdin)
+        runner.run_probes
+    end
+
     def self.monitor_loop(hyperv, path, period, stdin, &block)
         runner = ProbeRunner.new(hyperv, path, stdin)
 
@@ -145,26 +150,28 @@ begin
     host   = config.elements['UDP_LISTENER/MONITOR_ADDRESS'].text.to_s
     port   = config.elements['UDP_LISTENER/PORT'].text.to_s
     pubkey = config.elements['UDP_LISTENER/PUBKEY'].text.to_s
-    hyperv = ARGV[0]
+    hostid = config.elements['HOST_ID'].text.to_s
+    hyperv = ARGV[0].split(' ')[0]
+
 
     probes = {
         :system_host => {
-            :period => config.elements['PROBE_PERIOD/SYSTEM_HOST'].text.to_s,
+            :period => config.elements['PROBES_PERIOD/SYSTEM_HOST'].text.to_s,
             :path => 'host/system'
         },
 
         :monitor_host => {
-            :period => config.elements['PROBE_PERIOD/MONITOR_HOST'].text.to_s,
+            :period => config.elements['PROBES_PERIOD/MONITOR_HOST'].text.to_s,
             :path => 'host/monitor'
         },
 
         :state_vm => {
-            :period => config.elements['PROBE_PERIOD/STATUS_VM'].text.to_s,
+            :period => config.elements['PROBES_PERIOD/STATUS_VM'].text.to_s,
             :path => 'vm/status'
         },
 
         :monitor_vm => {
-            :period => config.elements['PROBE_PERIOD/MONITOR_VM'].text.to_s,
+            :period => config.elements['PROBES_PERIOD/MONITOR_VM'].text.to_s,
             :path => 'vm/monitor'
         },
     }
@@ -176,13 +183,26 @@ end
 #-------------------------------------------------------------------------------
 # Run configuration probes and send information to monitord
 #-------------------------------------------------------------------------------
-client = MonitorClient.new(host, port, 0, :pubkey => pubkey)
-# TODO: execute host/system + datastore/monitor
-# TODO: get host id from probe arguments
+client = MonitorClient.new(host, port, hostid, :pubkey => pubkey)
+
+rc, data = ProbeRunner.run_once(hyperv, probes[:system_host][:path], xml_txt)
+
+puts data
+
+exit(-1) if rc == -1
 
 #-------------------------------------------------------------------------------
 # Start monitor threads and shepherd
 #-------------------------------------------------------------------------------
+Process.setsid
+
+STDIN.close
+
+_rd, wr = IO.pipe
+
+STDOUT.reopen(wr)
+STDERR.reopen(wr)
+
 threads = []
 
 probes.each do |msg_type, conf|

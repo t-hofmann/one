@@ -60,7 +60,7 @@ class InformationManagerDriver < OpenNebulaDriver
         register_action(:STOP_MONITOR, method('stop_monitor'))
     end
 
-    def start_monitor(not_used, hostid, zaction64)
+    def start_monitor(_not_used, hostid, zaction64)
         zaction = Base64.decode64(zaction64)
         action  = Zlib::Inflate.inflate(zaction)
 
@@ -70,7 +70,14 @@ class InformationManagerDriver < OpenNebulaDriver
 
         hostname = host_xml.elements['NAME'].text.to_s
         im_mad   = host_xml.elements['IM_MAD'].text.to_s
-        config   = config_xml.to_s
+        host_id  = host_xml.elements['ID'].text.to_s
+
+        hid_elem = REXML::Element.new 'HOST_ID'
+        hid_elem.add_text(host_id)
+
+        config_xml.add_element(hid_elem)
+
+        config = config_xml.to_s
 
         update_remotes(:START_MONITOR, hostid, hostname)
 
@@ -80,11 +87,12 @@ class InformationManagerDriver < OpenNebulaDriver
                   :script_name => 'run_probes')
     rescue StandardError => e
         msg = Zlib::Deflate.deflate(e.message, Zlib::BEST_COMPRESSION)
-        msg = Base64::encode64(msg).strip.delete("\n")
+        msg = Base64.encode64(msg).strip.delete("\n")
+
         send_message(:START_MONITOR, RESULT[:failure], hostid, msg)
     end
 
-    def stop_monitor(not_used, number, host)
+    def stop_monitor(_not_used, number, host)
         do_action(@hypervisor.to_s, number, host,
                   :STOPMONITOR,
                   :script_name => 'stop_probes',
@@ -100,9 +108,10 @@ class InformationManagerDriver < OpenNebulaDriver
         cmd = SSHCommand.run(mkdir_cmd, hostname, log_method(hostid))
 
         if cmd.code != 0
+            msg = Zlib::Deflate.deflate('Could not update remotes',
+                                        Zlib::BEST_COMPRESSION)
+            msg = Base64.encode64(msg).strip.delete("\n")
 
-            msg = Zlib::Deflate.deflate('Could not update remotes', Zlib::BEST_COMPRESSION)
-            msg = Base64::encode64(msg).strip.delete("\n")
             send_message(action, RESULT[:failure], hostid, msg)
             return
         end
@@ -117,9 +126,10 @@ class InformationManagerDriver < OpenNebulaDriver
         cmd = LocalCommand.run(sync_cmd, log_method(hostid))
 
         if cmd.code != 0
+            msg = Zlib::Deflate.deflate('Could not update remotes',
+                                        Zlib::BEST_COMPRESSION)
+            msg = Base64.encode64(msg).strip.delete("\n")
 
-            msg = Zlib::Deflate.deflate('Could not update remotes', Zlib::BEST_COMPRESSION)
-            msg = Base64::encode64(msg).strip.delete("\n")
             send_message(action, RESULT[:failure], hostid, msg)
             return
         end
