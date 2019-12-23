@@ -275,6 +275,8 @@ void HostMonitorManager::start_monitor_failure(int oid)
         return;
     }
 
+    host->monitor_in_progress(false);
+
     oned_driver->host_state(oid, Host::state_to_str(Host::HostState::ERROR));
 
     return;
