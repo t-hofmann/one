@@ -7,10 +7,12 @@ require 'yaml'
 class DB
 
     DB_PATH = "#{__dir__}/../status.db"
-    CONFIG  = "#{__dir__}/../../etc/im/probe_db.conf"
 
     def initialize(time, hypervisor)
-        @config = YAML.load_file(CONFIG)
+        @hypervisor = hypervisor.downcase
+
+        config = "#{__dir__}/../../etc/im/#{@hypervisor}-probes.d/probe_db.conf"
+        @config = YAML.load_file(config)
 
         @db = Sequel.connect("sqlite://#{DB_PATH}")
 
@@ -20,7 +22,6 @@ class DB
         @stored_ids = @dataset.map(:id)
 
         @time = time
-        @hypervisor = hypervisor
 
         clean_old
     end
@@ -30,9 +31,10 @@ class DB
         new_data = ''
         real_ids = []
 
+        # TODO: Fix Wild VMs overwriting -1 ID
         vms.each do |vm|
             id = vm[/ID=[0-9-]+/].split('=').last.to_i
-            status = vm[/STATE="\S"?/].split('=').last
+            status = vm[/STATE=[A-Z]+/].split('=').last
 
             real_ids << id
 
@@ -43,11 +45,11 @@ class DB
                 update(id, status)
 
                 new_data << "VM=[\n#{vm}"
-            rescue # no match found
+            rescue StandardError # no match found
                 did = vm[/DEPLOY_ID=[-0-9a-zA-Z_]+/].split('=').last.to_i
 
                 insert(:id => id, :did => did, :status => status,
-                    :timestamp => timestamp, :hypervisor => @hypervisor)
+                       :timestamp => timestamp, :hypervisor => @hypervisor)
 
                 new_data << "VM=[\n#{vm}"
             end
@@ -62,7 +64,7 @@ class DB
     # Updates the status of an existing VM entry
     def update(id, status, time = @time)
         @dataset.where(:id => id).update(:status => status,
-            :timestamp => time)
+                                         :timestamp => time)
     end
 
     # Adds a new full VM entry
@@ -91,7 +93,7 @@ class DB
             string = "VM=[\n"
             string <<  "  ID=#{vm[:id]},\n"
             string <<  "  DEPLOY_ID=#{vm[:did]},\n"
-            string << %(  STATE="#{vm[:status]}" ]\n)
+            string << %(  STATE=#{vm[:status]} ]\n)
         end
 
         string

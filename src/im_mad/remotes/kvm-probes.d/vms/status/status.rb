@@ -41,7 +41,7 @@ module KVM
 
             values = {}
 
-            values[:state] = "\"#{get_state(dominfo['State'], vm[:reason])}\""
+            values[:state] = get_state(dominfo['State'], vm[:reason])
 
             if !name.match(/^one-\d+/)
                 xml = dump_xml(name)

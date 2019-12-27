@@ -39,28 +39,28 @@ module LXD
     #  * 'stopped' container not running or in the process of shutting down.
     #  * 'failure' container have failed.
     def self.one_status(container)
+        u = 'UNKNOWN'
+
         begin
-            status = container.status.downcase
+            status = container.status.upcase
         rescue StandardError
-            status = 'unknown'
+            status = U
         end
 
         case status
-        when 'running'
-            state = 'a'
-        when 'frozen'
-            state = 'p'
-        when 'stopped'
-            state = 'd'
+        when 'RUNNING'
+            status
+        when 'FROZEN'
+            'PAUSED'
+        when 'STOPPED'
+            'POWEROFF'
 
-            state = '-' if container.config['user.one_status'] == '0'
-        when 'failure'
-            state = 'e'
+            u if container.config['user.one_status'] == '0'
+        when 'FAILURE'
+            status
         else
-            state = '-'
+            u
         end
-
-        state
     end
 
     def self.all_vm_status
@@ -70,7 +70,7 @@ module LXD
 
         vms_info = {}
         vms.each do |container|
-            vms_info[container.name] = { :status => one_status(container) }
+            vms_info[container.name] = { :state => one_status(container) }
         end
 
         vms_info
@@ -83,7 +83,7 @@ end
 ################################################################################
 caching = true # TODO: Add avoid DB caching option via monitord
 
-vms = all_vm_status(KVM)
+vms = all_vm_status(LXD)
 
 return if vms.empty?
 
