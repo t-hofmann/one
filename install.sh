@@ -459,6 +459,7 @@ INSTALL_FILES=(
     IM_PROBES_FILES:$VAR_LOCATION/remotes/im
     IM_PROBES_LIB_FILES:$VAR_LOCATION/remotes/im/lib
     IM_PROBES_KVM_FILES:$VAR_LOCATION/remotes/im/kvm.d
+    IM_PROBES_LXD_FILES:$VAR_LOCATION/remotes/im/lxd.d
     IM_PROBES_KVM_HOST_MONITOR_FILES:$VAR_LOCATION/remotes/im/kvm-probes.d/host/monitor
     IM_PROBES_KVM_HOST_SYSTEM_FILES:$VAR_LOCATION/remotes/im/kvm-probes.d/host/system
     IM_PROBES_KVM_VM_MONITOR_FILES:$VAR_LOCATION/remotes/im/kvm-probes.d/vm/monitor
