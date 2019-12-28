@@ -31,10 +31,15 @@ class DB
         new_data = ''
         real_ids = []
 
-        # TODO: Fix Wild VMs overwriting -1 ID
         vms.each do |vm|
             id = vm[/ID=[0-9-]+/].split('=').last.to_i
             status = vm[/STATE=[A-Z]+/].split('=').last
+
+            # TODO: Cache wild VMs status. Workaround -1 non unique ID
+            if id == -1
+                new_data << "VM=[\n#{vm}"
+                next
+            end
 
             real_ids << id
 
