@@ -836,13 +836,6 @@ PM_EXEC_PACKET_SCRIPTS="src/pm_mad/remotes/packet/cancel \
                         src/pm_mad/remotes/packet/reset \
                         src/pm_mad/remotes/packet/shutdown"
 
-
-#-------------------------------------------------------------------------------
-# VMM Lib files, used by some VMM Drivers, to be installed in
-# $REMOTES_LOCATION/vmm/lib
-#-------------------------------------------------------------------------------
-
-VMM_EXEC_LIB_FILES="src/vmm_mad/remotes/lib/poll_common.rb"
 #-------------------------------------------------------------------------------
 # VMM Lib vcenter files, used by the vCenter Driver to be installed in
 # $REMOTES_LOCATION/vmm/lib/vcenter
@@ -1076,10 +1069,9 @@ IM_PROBES_FILES="\
     src/im_mad/remotes/stop_probes"
 
 IM_PROBES_LIB_FILES="\
-    src/im_mad/remotes/lib/kvm_poll.rb \
+    src/im_mad/remotes/lib/kvm.rb \
     src/im_mad/remotes/lib/linux.rb \
     src/im_mad/remotes/lib/numa_common.rb \
-    src/im_mad/remotes/lib/poll_common.rb \
     src/im_mad/remotes/lib/probe_db.rb"
 
 # KVM PROBES
