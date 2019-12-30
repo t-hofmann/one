@@ -101,10 +101,11 @@ module ProcessList
             l = l.split(/\s+/)
 
             swap = `cat /proc/#{l[1]}/status 2>/dev/null | grep VmSwap`
+            swap = swap.split()[1] || 0
 
             procs[m[1]] = {
                 :pid => l[1],
-                :mem => l[5] + swap
+                :memory => l[5].to_i + swap.to_i
             }
 
             pids << l[1]
