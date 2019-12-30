@@ -437,7 +437,7 @@ module DomainList
         domains.to_monitor
     end
 
-    def self.wild_info
+    def self.wilds_info
         domains = KVMDomains.new
 
         domains.wilds_info
