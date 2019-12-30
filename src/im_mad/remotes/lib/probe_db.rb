@@ -3,20 +3,31 @@
 require 'sequel'
 require 'yaml'
 
-# SQlite Interface to the caching database for the status probes
+# ------------------------------------------------------------------------------
+# SQlite Interface for the status probes. It stores the last known state of
+# each domain and the number of times the domain has been reported as missing
+#
+# IMPORTANT. This class needs to include/require a DomainList module with
+# the state_info method.
+# ------------------------------------------------------------------------------
 class VirtualMachineDB
+
+    # Default configuration attributes for the Database probe
+    DEFAULT_CONFIGURATION = {
+        :times_missing => 3,
+        :obsolete      => 720,
+        :db_path       => "#{__dir__}/../status.db",
+        :missing_state => "POWEROFF"
+    }
 
     def initialize(hyperv, opts = {})
         conf_path = "#{__dir__}/../../etc/im/#{hyperv}-probes.d/probe_db.conf"
         etc_conf  = YAML.load_file(conf_path) rescue nil
 
-        @conf = {
-            :times_missing => 3,
-            :obsolote      => 720,
-            :db_path       => "#{__dir__}/../status.db",
-            :missing_state => "POWEROFF",
-            :hyperv        => hyperv
-        }.merge etc_conf if etc_conf
+        @conf = DEFAULT_CONFIGURATION.clone
+        @conf[:hyperv] = hyperv
+
+        @conf.merge! etc_conf if etc_conf
 
         @conf.merge! opts
 
@@ -34,22 +45,25 @@ class VirtualMachineDB
         @dataset.where { timestamp < limit }.delete
     end
 
-    # Returns the VM status that changed compared to the DB info
+    # Returns the VM status that changed compared to the DB info as well
+    # as VMs that have been reported as missing more than missing_times
     def to_status
         status_str = ''
 
         time = Time.now.to_i
-        vms  = DomainList.info
+        vms  = DomainList.state_info
 
-        known_ids  = []
+        known_ids = []
 
+        # ----------------------------------------------------------------------
         # report state changes in vms
+        # ----------------------------------------------------------------------
         vms.each do |uuid, vm|
             vm_db = @dataset.first(:id => uuid)
 
             known_ids << vm[:uuid]
 
-            if vm_db.empty?
+            if vm_db.nil? || vm_db.empty?
                 @dataset.insert({
                     :id        => uuid,
                     :timestamp => time,
@@ -62,25 +76,29 @@ class VirtualMachineDB
 
             next if vm_db[:state] == vm[:state]
 
-            status_str << "VM = [ ID=\"#{vm[:id]}\", DEPLOY_ID=\"#{vm[:name]}\""
-            status_str << " STATE=\"#{vm[:state]}\" ]\n"
+            status_str << "VM = [ ID=\"#{vm[:id]}\", "
+            status_str << "DEPLOY_ID=\"#{vm[:name]}\", "
+            status_str << "STATE=\"#{vm[:state]}\" ]\n"
 
             @dataset.where(:id => uuid).update(:state => vm[:state],
                                                :timestamp => time)
         end
 
-        # check missing VMs, remove monitored ids
+        # ----------------------------------------------------------------------
+        # check missing VMs
+        # ----------------------------------------------------------------------
         (@dataset.map(:id) - known_ids).each do |uuid|
             vm_db = @dataset.first(:id => uuid)
             vm    = vms[uuid]
 
-            next if vm_db.empty? || vm.nil?
+            next if vm.nil? || vm_db.empty?
 
             miss = vm_db[:missing]
 
             if miss > @conf[:times_missing]
-                status_str << "VM = [ ID=\"#{vm[:id]}\", DEPLOY_ID=\"#{vm[:name]}\""
-                status_str << " STATE=\"#{@conf[:missing_state]}\" ]\n"
+                status_str << "VM = [ ID=\"#{vm[:id]}\", "
+                status_str << "DEPLOY_ID=\"#{vm[:name]}\", "
+                status_str << "STATE=\"#{@conf[:missing_state]}\" ]\n"
             end
 
             @dataset.where(:id => uuid).update(:timestamp => time,

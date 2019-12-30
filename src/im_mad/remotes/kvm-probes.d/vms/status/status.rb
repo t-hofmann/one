@@ -11,7 +11,6 @@ begin
     vmdb.purge
 
     puts vmdb.to_status
-
 rescue StandardError => e
     puts e
 end

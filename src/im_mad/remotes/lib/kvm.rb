@@ -23,10 +23,12 @@ require 'rexml/document'
 ENV['LANG'] = 'C'
 ENV['LC_ALL'] = 'C'
 
-################################################################################
-#  KVM Monitor Module. This module provides basic functionality to get execute
-#  virsh commands and compute process usage.
-################################################################################
+#-------------------------------------------------------------------------------
+#  KVM Monitor Module. This module provides basic functionality to execute
+#  virsh commands and load KVM configuration in remotes/etc/vmm/kvm/kvmrc
+#
+#  The load_conf should be called before executing virsh commands
+#-------------------------------------------------------------------------------
 module KVM
 
     # Constants for KVM virsh commands
@@ -73,9 +75,15 @@ end
 
 #-------------------------------------------------------------------------------
 #  This module gets the pid, memory and cpu usage of a set of process that
-#  includes a -uuid argument
+#  includes a -uuid argument (qemu-kvm vms).
+#
+#  Usage is computed based on the fraction of jiffies used by the process
+#  relative to the system during AVERAGE_SECS (1s)
 #-------------------------------------------------------------------------------
 module ProcessList
+
+    #  Number of seconds to average process usage
+    AVERAGE_SECS = 1
 
     # list of process indexed by uuid, each entry:
     #    :pid
@@ -123,7 +131,7 @@ module ProcessList
             cpu_ini[pid] = proc_jiffies(pid).to_f
         end
 
-        sleep 1
+        sleep AVERAGE_SECS
 
         cpu_j = jiffies - j_ini
 
@@ -181,6 +189,8 @@ end
 #    @vm[:diskwrbytes]
 #    @vm[:diskrdiops]
 #    @vm[:diskwriops]
+#
+#  This class uses the KVM and ProcessList interface
 #-------------------------------------------------------------------------------
 class Domain
 
@@ -191,7 +201,8 @@ class Domain
         @vm   = {}
     end
 
-    # Gets the information of the domain
+    # Gets the information of the domain, fills the @vm hash using ProcessList
+    # and virsh dominfo
     def info
         text, _e, s = KVM.virsh(:dominfo, @name)
 
@@ -242,7 +253,7 @@ class Domain
         io_stats
     end
 
-    # Get domain attribute by name
+    # Get domain attribute by name.
     def [](name)
         @vm[name]
     end
@@ -253,7 +264,9 @@ class Domain
     end
 
     # Convert the output of dumpxml for this domain to an OpenNebula template
-    #   @return [Array] uuid and OpenNebula template encoded in base64
+    # that can be imported. This method is for wild VMs.
+    #
+    #   @return [String] OpenNebula template encoded in base64
     def to_one
         xml, _e, s = KVM.virsh(:dumpxml, @name)
         return '' if s.exitstatus != 0
@@ -310,6 +323,16 @@ class Domain
         ''
     end
 
+    #  Builds an OpenNebula Template with the monitoring keys. E.g.
+    #    CPU=125.2
+    #    MEMORY=1024
+    #    NETTX=224324
+    #    NETRX=213132
+    #    ...
+    #
+    #  Keys are defined in MONITOR_KEYS constant
+    #
+    #  @return [String] OpenNebula template encoded in base64
     def to_monitor
         mon_s = ''
 
@@ -358,7 +381,8 @@ class Domain
     MONITOR_KEYS = %w[cpu memory netrx nettx diskrdbytes diskwrbytes diskrdiops
                       diskwriops]
 
-    # Get the I/O stats of the domain as provided by Libvirt
+    # Get the I/O stats of the domain as provided by Libvirt command domstats
+    # The metrics are aggregated for all DIKS and NIC
     def io_stats
         @vm[:netrx] = 0
         @vm[:nettx] = 0
@@ -395,106 +419,161 @@ class Domain
 
 end
 
-#  This class includes the information of the domains running in a host.
+#-------------------------------------------------------------------------------
+# This module provides a basic interface to get the list of domains in
+# the system and convert the information to be added to monitor or system
+# messages.
 #
-class DomainList
-
-    include KVM
-    include ProcessList
-
+# It also gathers the state information of the domains for the state probe
+#-------------------------------------------------------------------------------
+module DomainList
+    ############################################################################
+    #  Module Interface
+    ############################################################################
     def self.info
-        vms = {}
+        domains = KVMDomains.new
 
-        vm_ps = ProcessList.process_list
-
-        text, _e, s = KVM.virsh(:list, '')
-
-        return if s.exitstatus != 0
-
-        lines = text.split(/\n/)[2..-1]
-
-        names = lines.map do |line|
-            line.split(/\s+/).delete_if {|d| d.empty? }[1]
-        end
-
-        names.each do |name|
-            next unless name =~ /^one-\d+/
-
-            vm = Domain.new name
-
-            next if vm.info == -1
-
-            vms[vm[:uuid]] = vm
-        end
-
-        vm_ps.each do |uuid, ps|
-            next unless vms[uuid]
-
-            vms[uuid].merge!(ps)
-        end
-
-        vms
+        domains.info
+        domains.to_monitor
     end
 
     def self.wild_info
-        vms = {}
+        domains = KVMDomains.new
 
-        vm_ps = ProcessList.process_list
-
-        text, _e, s = KVM.virsh(:list, '')
-
-        return if s.exitstatus != 0
-
-        lines = text.split(/\n/)[2..-1]
-
-        names = lines.map do |line|
-            line.split(/\s+/).delete_if {|d| d.empty? }[1]
-        end
-
-        names.each do |name|
-            next if name =~ /^one-\d+/
-
-            vm = Domain.new name
-
-            next if vm.info == -1
-
-            vm[:template] = Base64.strict_encode64(t) unless t.empty?
-
-            vms[vm[:uuid]] = vm
-        end
-
-        vm_ps.each do |uuid, ps|
-            next unless vms[uuid]
-
-            vms[uuid].merge!(ps)
-        end
-
-        vms
+        domains.wilds_info
+        domains.wilds_to_monitor
     end
 
-    def self.to_monitor(vms)
-        mon_s = ''
+    def self.state_info
+        domains = KVMDomains.new
 
-        vms.each do |_uuid, vm|
-            next if vm[:id] == -1
-
-            mon_s << "VM = [ ID=\"#{vm[:id]}\", DEPLOY_ID=\"#{vm[:name]}\""
-            mon_s << " MONITOR=\"#{vm.to_monitor}\"]\n"
-        end
-
-        mon_s
+        domains.state_info
     end
 
-    def self.wilds_to_monitor(vms)
-        mon_s = ''
-        vms.each do |_uuid, vm|
-            next if vm[:id] != -1 || vm[:template].empty
+    ############################################################################
+    # This is the implementation class for the module logic
+    ############################################################################
+    class KVMDomains
+        include KVM
+        include ProcessList
 
-            mon_s << "VM = [ ID=\"#{vm[:id]}\", DEPLOY_ID=\"#{vm[:name]}\""
-            mon_s << " IMPORT_TEMPLATE=\"#{vm[:template]}\"]\n"
+        def initialize
+            @vms = {}
         end
 
-        mon_s
+        # Get the list of VMs (known to OpenNebula) and their monitor info
+        # including process usage
+        #
+        #   @return [Hash] with KVM Domain classes indexed by their uuid
+        def info
+            info_each(true) do |name|
+                next unless name =~ /^one-\d+/
+
+                vm = Domain.new name
+
+                next if vm.info == -1
+
+                vm
+            end
+        end
+
+        # Get the list of wild VMs (not known to OpenNebula) and their monitor
+        # information including process usage
+        #
+        #   @return [Hash] with KVM Domain classes indexed by their uuid
+        def wilds_info
+            info_each(true) do |name|
+                next if name =~ /^one-\d+/
+
+                vm = Domain.new name
+
+                next if vm.info == -1
+
+                vm[:template] = Base64.strict_encode64(t) unless t.empty?
+
+                vm
+            end
+        end
+
+        # Get the list of VMs (known and not known to OpenNebula) and their info
+        # not including process usage.
+        #
+        #   @return [Hash] with KVM Domain classes indexed by their uuid
+        def state_info
+            info_each(false) do |name|
+                vm = Domain.new name
+
+                next if vm.info == -1
+
+                vm
+            end
+        end
+
+        # Return a message string with VM monitor information
+        def to_monitor
+            mon_s = ''
+
+            @vms.each do |_uuid, vm|
+                next if vm[:id] == -1
+
+                mon_s << "VM = [ ID=\"#{vm[:id]}\", DEPLOY_ID=\"#{vm[:name]}\""
+                mon_s << " MONITOR=\"#{vm.to_monitor}\"]\n"
+            end
+
+            mon_s
+        end
+
+        # Return a message string with wild VM information
+        def wilds_to_monitor
+            mon_s = ''
+
+            @vms.each do |_uuid, vm|
+                next if vm[:id] != -1 || vm[:template].empty
+
+                mon_s << "VM = [ ID=\"#{vm[:id]}\", DEPLOY_ID=\"#{vm[:name]}\""
+                mon_s << " IMPORT_TEMPLATE=\"#{vm[:template]}\"]\n"
+            end
+
+            mon_s
+        end
+
+        private
+
+        # Generic build method for the info list. It filters and builds the
+        # domain list based on the given block
+        #   @param[Boolean] do_process, to get process information
+        def info_each(do_process)
+            return unless block_given?
+
+            vm_ps = ProcessList.process_list if do_process
+
+            text, _e, s = KVM.virsh(:list, '')
+
+            return {} if s.exitstatus != 0
+
+            lines = text.split(/\n/)[2..-1]
+
+            names = lines.map do |line|
+                line.split(/\s+/).delete_if {|d| d.empty? }[1]
+            end
+
+            names.each do |name|
+                vm = yield(name)
+
+                @vms[vm[:uuid]] = vm if vm
+            end
+
+            return @vms unless do_process
+
+            vm_ps.each do |uuid, ps|
+                next unless @vms[uuid]
+
+                @vms[uuid].merge!(ps)
+            end
+
+            @vms
+        end
+
     end
 
 end
