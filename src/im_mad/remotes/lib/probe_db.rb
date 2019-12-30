@@ -4,140 +4,104 @@ require 'sequel'
 require 'yaml'
 
 # SQlite Interface to the caching database for the status probes
-class DB
+class VirtualMachineDB
 
-    DB_PATH = "#{__dir__}/../status.db"
+    def initialize(hyperv, opts = {})
+        conf_path = "#{__dir__}/../../etc/im/#{hyperv}-probes.d/probe_db.conf"
+        etc_conf  = YAML.load_file(conf_path) rescue nil
 
-    def initialize(time, hypervisor)
-        @hypervisor = hypervisor.downcase
+        @conf = {
+            :times_missing => 3,
+            :obsolote      => 720,
+            :db_path       => "#{__dir__}/../status.db",
+            :missing_state => "POWEROFF",
+            :hyperv        => hyperv
+        }.merge etc_conf if etc_conf
 
-        config = "#{__dir__}/../../etc/im/#{@hypervisor}-probes.d/probe_db.conf"
-        @config = YAML.load_file(config)
+        @conf.merge! opts
 
-        @db = Sequel.connect("sqlite://#{DB_PATH}")
+        @db = Sequel.connect("sqlite://#{@conf[:db_path]}")
 
-        setup_db rescue nil
+        bootstrap
+
         @dataset = @db[:states]
+    end
 
-        @stored_ids = @dataset.map(:id)
+    # Deletes obsolete VM entries
+    def purge
+        limit = Time.now.to_i - (@conf[:obsolete] * 60) # conf in minutes
 
-        @time = time
-
-        clean_old
+        @dataset.where { timestamp < limit }.delete
     end
 
     # Returns the VM status that changed compared to the DB info
-    def new_status(vms, timestamp = @time)
-        new_data = ''
-        real_ids = []
+    def to_status
+        status_str = ''
 
-        vms.each do |vm|
-            id = vm[/ID=[0-9-]+/].split('=').last.to_i
-            status = vm[/STATE=[A-Z]+/].split('=').last
+        time = Time.now.to_i
+        vms  = DomainList.info
 
-            # TODO: Cache wild VMs status. Workaround -1 non unique ID
-            if id == -1
-                new_data << "VM=[\n#{vm}"
+        known_ids  = []
+
+        # report state changes in vms
+        vms.each do |uuid, vm|
+            vm_db = @dataset.first(:id => uuid)
+
+            known_ids << vm[:uuid]
+
+            if vm_db.empty?
+                @dataset.insert({
+                    :id        => uuid,
+                    :timestamp => time,
+                    :state     => vm[:state],
+                    :hyperv    => @conf[:hyperv],
+                    :missing   => 0
+                })
                 next
             end
 
-            real_ids << id
+            next if vm_db[:state] == vm[:state]
 
-            begin
-                vminfo = get(id)
-                next unless vminfo[:status] != status
+            status_str << "VM = [ ID=\"#{vm[:id]}\", DEPLOY_ID=\"#{vm[:name]}\""
+            status_str << " STATE=\"#{vm[:state]}\" ]\n"
 
-                update(id, status)
+            @dataset.where(:id => uuid).update(:state => vm[:state],
+                                               :timestamp => time)
+        end
 
-                new_data << "VM=[\n#{vm}"
-            rescue StandardError # no match found
-                did = vm[/DEPLOY_ID=[-0-9a-zA-Z_]+/].split('=').last.to_i
+        # check missing VMs, remove monitored ids
+        (@dataset.map(:id) - known_ids).each do |uuid|
+            vm_db = @dataset.first(:id => uuid)
+            vm    = vms[uuid]
 
-                insert(:id => id, :did => did, :status => status,
-                       :timestamp => timestamp, :hypervisor => @hypervisor)
+            next if vm_db.empty? || vm.nil?
 
-                new_data << "VM=[\n#{vm}"
+            miss = vm_db[:missing]
+
+            if miss > @conf[:times_missing]
+                status_str << "VM = [ ID=\"#{vm[:id]}\", DEPLOY_ID=\"#{vm[:name]}\""
+                status_str << " STATE=\"#{@conf[:missing_state]}\" ]\n"
             end
+
+            @dataset.where(:id => uuid).update(:timestamp => time,
+                                               :missing   => miss + 1)
         end
 
-        missing_vms = missing_alot(real_ids)
-        new_data << report_missing(missing_vms)
-
-        new_data
+        status_str
     end
 
-    # Updates the status of an existing VM entry
-    def update(id, status, time = @time)
-        @dataset.where(:id => id).update(:status => status,
-                                         :timestamp => time)
-    end
+    #  TODO describe DB schema
+    #
+    #
+    def bootstrap
+        return if @db.table_exists?(:states)
 
-    # Adds a new full VM entry
-    # @param [Hash] row the attributes for the VM
-    def insert(row)
-        @dataset.insert(row)
-    end
-
-    # Deletes a VM entry that no longer exists on the host
-    def delete(condition)
-        @dataset.where(condition).delete
-    end
-
-    # Returns a VM information hash
-    def get(id)
-        @dataset.first(:id => id)
-    end
-
-    private
-
-    # Returns the satus data string of the MISSING VMs
-    def report_missing(vms)
-        string = ''
-
-        vms.each do |vm|
-            string = "VM=[\n"
-            string <<  "  ID=#{vm[:id]},\n"
-            string <<  "  DEPLOY_ID=#{vm[:did]},\n"
-            string << %(  STATE=#{vm[:status]} ]\n)
-        end
-
-        string
-    end
-
-    # Returns the vms that have been missing too_much
-    def missing_alot(real_ids)
-        missing = []
-
-        missing_now = @stored_ids - real_ids
-
-        missing_now.each do |id|
-            vm = get(id)
-
-            next unless @time - vm[:timestamp] >= @config[:time_missing]
-
-            update(id, 'MISSING')
-
-            missing << get(id)
-        end
-
-        missing
-    end
-
-    # Deletes VM entries prior to the current time
-    def clean_old
-        obsolete = @config[:obsolete] * 60 # conf in minutes
-        now = Time.now.to_i
-
-        delete((now - Sequel[:timestamp]) >= obsolete)
-    end
-
-    def setup_db
         @db.create_table :states do
-            primary_key :id
-            String      :did
-            Integer     :timestamp
-            String      :status
-            String      :hypervisor
+            String  :id, primary_key: true
+            Integer :timestamp
+            Integer :missing
+            String  :state
+            String  :hyperv
         end
     end
 

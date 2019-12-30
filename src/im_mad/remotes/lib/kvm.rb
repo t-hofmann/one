@@ -52,7 +52,7 @@ module KVM
     end
 
     # Loads the rc variables and overrides the default values
-    def load_conf
+    def self.load_conf
         file = "#{__dir__}/../../etc/vmm/kvm/kvmrc"
 
         env   = `. "#{file}"; env`
@@ -90,7 +90,7 @@ module ProcessList
             m = l.match(/-uuid ([a-z0-9\-]+) /)
             next unless m
 
-            l.split(/\s+/)
+            l = l.split(/\s+/)
 
             swap = `cat /proc/#{l[1]}/status 2>/dev/null | grep VmSwap`
 
