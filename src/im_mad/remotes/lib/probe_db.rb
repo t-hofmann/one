@@ -65,8 +65,10 @@ class VirtualMachineDB
 
             if vm_db.nil? || vm_db.empty?
                 @dataset.insert({
-                    :id        => uuid,
+                    :uuid      => uuid,
                     :timestamp => time,
+                    :id        => vm[:id],
+                    :name      => vm[:name],
                     :state     => vm[:state],
                     :hyperv    => @conf[:hyperv],
                     :missing   => 0
@@ -80,29 +82,28 @@ class VirtualMachineDB
             status_str << "DEPLOY_ID=\"#{vm[:name]}\", "
             status_str << "STATE=\"#{vm[:state]}\" ]\n"
 
-            @dataset.where(:id => uuid).update(:state => vm[:state],
-                                               :timestamp => time)
+            @dataset.where(:uuid => uuid).update(:state => vm[:state],
+                                                 :timestamp => time)
         end
 
         # ----------------------------------------------------------------------
         # check missing VMs
         # ----------------------------------------------------------------------
-        (@dataset.map(:id) - known_ids).each do |uuid|
-            vm_db = @dataset.first(:id => uuid)
-            vm    = vms[uuid]
+        (@dataset.map(:uuid) - known_ids).each do |uuid|
+            vm_db = @dataset.first(:uuid => uuid)
 
-            next if vm.nil? || vm_db.empty?
+            next if vm_db.nil? || vm_db.empty?
 
             miss = vm_db[:missing]
 
             if miss > @conf[:times_missing]
-                status_str << "VM = [ ID=\"#{vm[:id]}\", "
-                status_str << "DEPLOY_ID=\"#{vm[:name]}\", "
+                status_str << "VM = [ ID=\"#{vm_db[:id]}\", "
+                status_str << "DEPLOY_ID=\"#{vm_db[:name]}\", "
                 status_str << "STATE=\"#{@conf[:missing_state]}\" ]\n"
             end
 
-            @dataset.where(:id => uuid).update(:timestamp => time,
-                                               :missing   => miss + 1)
+            @dataset.where(:uuid => uuid).update(:timestamp => time,
+                                                 :missing   => miss + 1)
         end
 
         status_str
@@ -115,7 +116,9 @@ class VirtualMachineDB
         return if @db.table_exists?(:states)
 
         @db.create_table :states do
-            String  :id, primary_key: true
+            String  :uuid, primary_key: true
+            Integer :id
+            String  :name
             Integer :timestamp
             Integer :missing
             String  :state
