@@ -416,7 +416,7 @@ int Host::post_update_template(string& error)
 {
     string new_im_mad;
     string new_vm_mad;
-    
+
     string rcpu;
     string rmem;
 

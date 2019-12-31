@@ -61,6 +61,42 @@ class InformationManagerDriver < OpenNebulaDriver
     end
 
     def start_monitor(_not_used, hostid, zaction64)
+        rc, input = parse_input(:START_MONITOR, zaction64)
+
+        return if rc == -1
+
+        rc = update_remotes(:START_MONITOR, input[:host_id], input[:hostname])
+
+        return if rc == -1
+
+        do_action(input[:im_mad],
+                  input[:host_id],
+                  input[:hostname],
+                  :START_MONITOR,
+                  :stdin => input[:stdin],
+                  :script_name => 'run_probes',
+                  :zip => true,
+                  :base64 => true)
+    end
+
+    def stop_monitor(_not_used, _hostid, zaction64)
+        rc, input = parse_input(:STOP_MONITOR, zaction64)
+
+        return if rc == -1
+
+        do_action(input[:im_mad],
+                  input[:host_id],
+                  input[:hostname],
+                  :STOP_MONITOR,
+                  :script_name => 'stop_probes',
+                  :stdin => input[:stdin],
+                  :zip => true,
+                  :base64 => true)
+    end
+
+    private
+
+    def parse_input(msg_type, zaction64)
         zaction = Base64.decode64(zaction64)
         action  = Zlib::Inflate.inflate(zaction)
 
@@ -77,31 +113,19 @@ class InformationManagerDriver < OpenNebulaDriver
 
         config_xml.add_element(hid_elem)
 
-        config = config_xml.to_s
+        [0, {:im_mad   => im_mad,
+             :host_id  => host_id,
+             :hostname => hostname,
+             :stdin    => config_xml.to_s}]
 
-        update_remotes(:START_MONITOR, hostid, hostname)
-
-        do_action(im_mad, hostid, hostname,
-                  :START_MONITOR,
-                  :stdin => config,
-                  :script_name => 'run_probes',
-                  :zip => true,
-                  :base64 => true)
     rescue StandardError => e
         msg = Zlib::Deflate.deflate(e.message, Zlib::BEST_COMPRESSION)
-        msg = Base64.encode64(msg).strip.delete("\n")
+        msg = Base64.strict_encode64(msg)
 
-        send_message(:START_MONITOR, RESULT[:failure], hostid, msg)
+        send_message(msg_type, RESULT[:failure], host_id, msg)
+
+        [-1, {}]
     end
-
-    def stop_monitor(_not_used, number, host)
-        do_action(@hypervisor.to_s, number, host,
-                  :STOPMONITOR,
-                  :script_name => 'stop_probes',
-                  :base64 => true)
-    end
-
-    private
 
     def update_remotes(action, hostid, hostname)
         # Recreate dir for remote scripts
@@ -112,10 +136,10 @@ class InformationManagerDriver < OpenNebulaDriver
         if cmd.code != 0
             msg = Zlib::Deflate.deflate('Could not update remotes',
                                         Zlib::BEST_COMPRESSION)
-            msg = Base64.encode64(msg).strip.delete("\n")
+            msg = Base64.strict_encode64(msg)
 
             send_message(action, RESULT[:failure], hostid, msg)
-            return
+            return -1
         end
 
         # Use SCP to sync:
@@ -130,10 +154,56 @@ class InformationManagerDriver < OpenNebulaDriver
         if cmd.code != 0
             msg = Zlib::Deflate.deflate('Could not update remotes',
                                         Zlib::BEST_COMPRESSION)
-            msg = Base64.encode64(msg).strip.delete("\n")
+            msg = Base64.strict_encode64(msg)
 
             send_message(action, RESULT[:failure], hostid, msg)
-            return
+            return -1
+        end
+
+        0
+    end
+
+    # Sends a log message to ONE. The +message+ can be multiline, it will
+    # be automatically splitted by lines.
+    def log(id, message)
+        in_error = false
+        msg      = message.strip
+        severity = 'I'
+
+        msg.each_line do |line|
+            l = line.strip
+
+            if l == 'ERROR MESSAGE --8<------'
+                in_error = true
+                next
+            elsif l == 'ERROR MESSAGE ------>8--'
+                in_error = false
+                next
+            else
+                m = line.match(/^(ERROR|DEBUG|INFO):(.*)$/)
+
+                if in_error
+                    severity = 'E'
+                elsif m
+                    line = m[2]
+
+                    case m[1]
+                    when 'ERROR'
+                        severity = 'E'
+                    when 'DEBUG'
+                        severity = 'D'
+                    when 'INFO'
+                        severity = 'I'
+                    else
+                        severity = 'I'
+                    end
+                end
+            end
+
+            zline   = Zlib::Deflate.deflate(line.strip, Zlib::BEST_COMPRESSION)
+            zline64 = Base64.strict_encode64(zline)
+
+            send_message('LOG', severity, id, zline64)
         end
     end
 

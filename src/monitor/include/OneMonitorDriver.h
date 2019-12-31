@@ -38,6 +38,13 @@ public:
     void host_state(int oid, const std::string& state);
 
     /**
+     *  Send a VM state message to oned
+     *    @param oid host id
+     *    @param state for the host
+     */
+    void vm_state(int oid, const std::string& state);
+
+    /**
      *  Send host system information to oned
      *    @param oid host id
      *    @param status result of the system monitor

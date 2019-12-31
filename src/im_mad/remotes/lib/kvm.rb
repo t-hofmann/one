@@ -236,7 +236,7 @@ class Domain
         reason = 'missing'
 
         if hash['STATE'] == 'paused'
-            text, _e, s = KVM.virsh(:domstate, "#{vmid} --reason")
+            text, _e, s = KVM.virsh(:domstate, "#{@name} --reason")
 
             if s.exitstatus == 0
                 text =~ /^[^ ]+ \(([^)]+)\)/
@@ -365,7 +365,6 @@ class Domain
       'in shutdown' => 'RUNNING',
       'shutdown'    => 'RUNNING',
       'dying'       => 'RUNNING',
-      'running'     => 'RUNNING',
       'crashed'     => 'FAILURE',
       'pmsuspended' => 'SUSPENDED',
       'paused' => {

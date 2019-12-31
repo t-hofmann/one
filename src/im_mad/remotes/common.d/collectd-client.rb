@@ -43,7 +43,6 @@ class MonitorClient
         define_method(mt.downcase.to_sym) do |rc, payload|
             msg = "#{mt} #{MESSAGE_STATUS[rc]} #{@hostid} #{pack(payload)}"
             @socket_udp.send(msg, 0)
-        rescue StandardError
         end
     end
 
@@ -98,6 +97,10 @@ class ProbeRunner
         @stdin = stdin
     end
 
+    # Run the probes once
+    #   @return[Array] rc, data. rc 0 for success and data is the output of
+    #   probes. If rc is -1 it signal failure and data is the error message of
+    #   the failing probe
     def run_probes
         data = ''
 
@@ -116,24 +119,42 @@ class ProbeRunner
         [0, data]
     end
 
+    # Singleton call for run_probes method
     def self.run_once(hyperv, path, stdin)
         runner = ProbeRunner.new(hyperv, path, stdin)
         runner.run_probes
     end
 
+    # Executes the probes in the directory in a loop. The block is called after
+    # each execution to optionally send the data to monitord
     def self.monitor_loop(hyperv, path, period, stdin, &block)
+        # Failure retries, simple exponential backoff
+        sfail  = [1, 1, 1, 2, 4, 8, 16, 32]
+        nfail  = 0
+
         runner = ProbeRunner.new(hyperv, path, stdin)
 
         loop do
+            sleep_time = 0
+
             ts = Time.now
 
             rc, data = runner.run_probes
 
-            block.call(rc, data)
+            begin
+                block.call(rc, data)
 
-            run_time = (Time.now - ts).to_i
+                run_time   = (Time.now - ts).to_i
+                sleep_time = (period.to_i - run_time) if period.to_i > run_time
 
-            sleep(period.to_i - run_time) if period.to_i > run_time
+                nfail = 0
+            rescue StandardError
+                sleep_time = sfail[nfail]
+
+                nfail += 1 if nfail < sfail.length - 1
+            end
+
+            sleep(sleep_time) if sleep_time > 0
         end
     end
 
@@ -153,7 +174,6 @@ begin
     hostid = config.elements['HOST_ID'].text.to_s
     hyperv = ARGV[0].split(' ')[0]
 
-
     probes = {
         :system_host => {
             :period => config.elements['PROBES_PERIOD/SYSTEM_HOST'].text.to_s,
@@ -166,14 +186,14 @@ begin
         },
 
         :state_vm => {
-            :period => config.elements['PROBES_PERIOD/STATUS_VM'].text.to_s,
+            :period => config.elements['PROBES_PERIOD/STATE_VM'].text.to_s,
             :path => 'vm/status'
         },
 
         :monitor_vm => {
             :period => config.elements['PROBES_PERIOD/MONITOR_VM'].text.to_s,
             :path => 'vm/monitor'
-        },
+        }
     }
 rescue StandardError => e
     puts e.inspect
@@ -188,6 +208,8 @@ client = MonitorClient.new(host, port, hostid, :pubkey => pubkey)
 rc, data = ProbeRunner.run_once(hyperv, probes[:system_host][:path], xml_txt)
 
 puts data
+
+STDOUT.flush
 
 exit(-1) if rc == -1
 
@@ -206,11 +228,13 @@ STDERR.reopen(wr)
 threads = []
 
 probes.each do |msg_type, conf|
-    threads << Thread.new {
+    threads << Thread.new do
         ProbeRunner.monitor_loop(hyperv, conf[:path], conf[:period], xml_txt) do |rc, da|
+            next if da.empty?
+
             client.send(msg_type, rc == 0, da)
         end
-    }
+    end
 end
 
 threads.each {|thr| thr.join }

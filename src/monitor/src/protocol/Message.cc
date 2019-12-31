@@ -50,6 +50,7 @@ const EString<OpenNebulaMessages> Message<OpenNebulaMessages>::_type_str({
     {"START_MONITOR", OpenNebulaMessages::START_MONITOR},
     {"STOP_MONITOR", OpenNebulaMessages::STOP_MONITOR},
     {"HOST_STATE", OpenNebulaMessages::HOST_STATE},
+    {"VM_STATE", OpenNebulaMessages::VM_STATE},
     {"SYSTEM_HOST", OpenNebulaMessages::SYSTEM_HOST},
 });
 

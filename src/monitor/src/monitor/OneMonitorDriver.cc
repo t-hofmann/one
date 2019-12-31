@@ -61,6 +61,20 @@ void OneMonitorDriver::host_state(int oid, const std::string& state)
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
+void OneMonitorDriver::vm_state(int oid, const std::string& state)
+{
+    Message<OpenNebulaMessages> oned_msg;
+
+    oned_msg.type(OpenNebulaMessages::VM_STATE);
+    oned_msg.oid(oid);
+    oned_msg.payload(state);
+
+    write2one(oned_msg);
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
 void OneMonitorDriver::host_system_info(int oid, const std::string& status,
         const std::string& payload)
 {

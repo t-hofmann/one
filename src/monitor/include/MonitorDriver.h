@@ -72,10 +72,11 @@ public:
     void stop_monitor(int oid, const std::string& host_xml)
     {
         message_t msg;
+        NebulaService& ns = Monitor::instance();
 
         msg.type(MonitorDriverMessages::STOP_MONITOR);
         msg.oid(oid);
-        msg.payload(format_message(host_xml));
+        msg.payload(format_message(host_xml + ns.get_configuration_xml()));
 
         write(msg);
     }

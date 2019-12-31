@@ -36,6 +36,9 @@ int InformationManager::start()
     register_action(OpenNebulaMessages::SYSTEM_HOST,
             bind(&InformationManager::_system_host, this, _1));
 
+    register_action(OpenNebulaMessages::VM_STATE,
+            bind(&InformationManager::_vm_state, this, _1));
+
     int rc = DriverManager::start(error);
 
     if ( rc != 0 )
@@ -262,6 +265,39 @@ void InformationManager::_system_host(unique_ptr<Message<OpenNebulaMessages>> ms
 void InformationManager::timer_action(const ActionRequest& ar)
 {
 
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+void InformationManager::_vm_state(unique_ptr<Message<OpenNebulaMessages>> msg)
+{
+    NebulaLog::debug("InM", "Received VM_STATE message id: " +
+            to_string(msg->oid()));
+
+    // -------------------------------------------------------------------------
+
+    char *   error_msg;
+    Template tmpl;
+
+    int rc = tmpl.parse(msg->payload(), &error_msg);
+
+    if (rc != 0)
+    {
+        NebulaLog::error("InM", string("Error parsing state vm: ") + error_msg);
+
+        free(error_msg);
+
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+
+    std::ostringstream oss;
+
+    oss << tmpl;
+
+    NebulaLog::info("DEBUG", oss.str());
 }
 
 /* -------------------------------------------------------------------------- */

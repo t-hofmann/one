@@ -33,6 +33,7 @@ enum class OpenNebulaMessages : unsigned short int
     START_MONITOR,
     STOP_MONITOR,
     HOST_STATE,
+    VM_STATE,
     SYSTEM_HOST,
     ENUM_MAX
 };

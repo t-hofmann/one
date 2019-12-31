@@ -43,7 +43,7 @@ void MonitorDriverProtocol::_monitor_vm(message_t msg)
 
 void MonitorDriverProtocol::_monitor_host(message_t msg)
 {
-    NebulaLog::ddebug("MDP", "Received monitoring for host " +
+    NebulaLog::ddebug("MDP", "Received monitoring information for host " +
             to_string(msg->oid()) + ": " + msg->payload());
 
     std::string msg_str = msg->payload();
@@ -71,6 +71,9 @@ void MonitorDriverProtocol::_monitor_host(message_t msg)
 
 void MonitorDriverProtocol::_system_host(message_t msg)
 {
+    NebulaLog::ddebug("MDP", "Received system information for host " +
+            to_string(msg->oid()) + ": " + msg->payload());
+
     auto oned = hm->get_oned_driver();
     oned->host_system_info(msg->oid(), msg->status(), msg->payload());
 }
@@ -80,7 +83,17 @@ void MonitorDriverProtocol::_system_host(message_t msg)
 
 void MonitorDriverProtocol::_state_vm(message_t msg)
 {
+    NebulaLog::ddebug("MDP", "Received state vm message for host " +
+            to_string(msg->oid()) + ": " + msg->payload());
 
+    if (msg->status() != "SUCCESS")
+    {
+        NebulaLog::warn("MDP", "Failed to monitor VM state for host " +
+            to_string(msg->oid()) + ": " + msg->payload());
+    }
+
+    auto oned = hm->get_oned_driver();
+    oned->vm_state(msg->oid(), msg->payload());
 }
 
 /* -------------------------------------------------------------------------- */
@@ -111,6 +124,7 @@ void MonitorDriverProtocol::_start_monitor(message_t msg)
 void MonitorDriverProtocol::_log(message_t msg)
 {
     auto log_type = Log::INFO;
+
     switch (msg->status()[0])
     {
             case 'E':
@@ -123,6 +137,7 @@ void MonitorDriverProtocol::_log(message_t msg)
                 log_type = Log::DEBUG;
                 break;
     }
+
     NebulaLog::log("MDP", log_type, msg->payload());
 }
 
