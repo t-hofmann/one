@@ -130,7 +130,15 @@ void HostMonitorManager::update_host(int oid, const std::string &xml)
 
     if (host.valid())
     {
+        auto old_state = host->state();
+
         host->from_xml(xml);
+
+        if (host->state() != old_state &&
+            host->state() == Host::INIT)
+        {
+            start_host_monitor(host);
+        }
 
         NebulaLog::debug("HMM", "Updated Host " + to_string(host->oid())
             + ", state " + Host::state_to_str(host->state()));
@@ -164,7 +172,10 @@ void HostMonitorManager::start_host_monitor(int oid)
         return;
     }
 
-    start_host_monitor(host);
+    if (host->state() != Host::HostState::OFFLINE)
+    {
+        start_host_monitor(host);
+    }
 }
 
 /* -------------------------------------------------------------------------- */

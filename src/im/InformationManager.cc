@@ -270,6 +270,28 @@ void InformationManager::timer_action(const ActionRequest& ar)
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
+void InformationManager::user_action(const ActionRequest& ar)
+{
+    auto * imd = get_driver("monitord");
+    if (!imd)
+    {
+        NebulaLog::error("InM", "Could not find information driver 'monitor'");
+
+        return;
+    }
+
+    string xml_hosts;
+    hpool->dump(xml_hosts, "", "", false);
+
+    Message<OpenNebulaMessages> msg;
+    msg.type(OpenNebulaMessages::HOST_LIST);
+    msg.payload(xml_hosts);
+    imd->write(msg);
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
 void InformationManager::_vm_state(unique_ptr<Message<OpenNebulaMessages>> msg)
 {
     NebulaLog::debug("InM", "Received VM_STATE message id: " +
