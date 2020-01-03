@@ -134,10 +134,16 @@ void HostMonitorManager::update_host(int oid, const std::string &xml)
 
         host->from_xml(xml);
 
-        if (host->state() != old_state &&
-            host->state() == Host::INIT)
+        if (host->state() != old_state)
         {
-            start_host_monitor(host);
+            if (host->state() == Host::OFFLINE)
+            {
+                stop_host_monitor(host);
+            }
+            else if (old_state == Host::OFFLINE)
+            {
+                start_host_monitor(host);
+            }
         }
 
         NebulaLog::debug("HMM", "Updated Host " + to_string(host->oid())
@@ -191,21 +197,7 @@ void HostMonitorManager::stop_host_monitor(int oid)
         return;
     }
 
-    auto driver = driver_manager->get_driver(host->im_mad());
-
-    if (!driver)
-    {
-        NebulaLog::error("HMM", "stop_monitor: Cannot find driver " + host->im_mad());
-        return;
-    }
-
-    NebulaLog::debug("HMM", "Stopping Monitoring on host " +host->name() + "("
-            + to_string(host->oid()) + ")");
-
-    string xml = host->to_xml();
-
-    driver->stop_monitor(oid, xml);
-    host->monitor_in_progress(false);
+    stop_host_monitor(host);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -408,5 +400,26 @@ void HostMonitorManager::start_host_monitor(const HostRPCPool::HostBaseLock& hos
 
     driver->start_monitor(host->oid(), xml);
 }
+
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
+
+void HostMonitorManager::stop_host_monitor(const HostRPCPool::HostBaseLock& host)
+{
+    auto driver = driver_manager->get_driver(host->im_mad());
+
+    if (!driver)
+    {
+        NebulaLog::error("HMM", "stop_monitor: Cannot find driver " + host->im_mad());
+        return;
+    }
+
+    NebulaLog::debug("HMM", "Stopping Monitoring on host " +host->name() + "("
+        + to_string(host->oid()) + ")");
+
+    string xml = host->to_xml();
+
+    driver->stop_monitor(host->oid(), xml);
+    host->monitor_in_progress(false);
+
+}

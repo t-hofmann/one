@@ -196,11 +196,6 @@ int Host::update_info(Template &tmpl)
 
 void Host::enable()
 {
-    if (state == OFFLINE)
-    {
-        Nebula::instance().get_im()->start_monitor(this, true);
-    }
-
     state = INIT;
 };
 
@@ -208,11 +203,6 @@ void Host::enable()
 
 void Host::disable()
 {
-    if (state == OFFLINE)
-    {
-        Nebula::instance().get_im()->start_monitor(this, true);
-    }
-
     state = DISABLED;
 };
 
@@ -220,8 +210,6 @@ void Host::disable()
 
 void Host::offline()
 {
-    Nebula::instance().get_im()->stop_monitor(get_oid(),get_name(),get_im_mad());
-
     state = OFFLINE;
 
     host_share.reset_capacity();

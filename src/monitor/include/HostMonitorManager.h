@@ -141,6 +141,8 @@ private:
     static const time_t monitor_expire;
 
     void start_host_monitor(const HostRPCPool::HostBaseLock& host);
+
+    void stop_host_monitor(const HostRPCPool::HostBaseLock& host);
 };
 
 #endif //HOST_MONITOR_MANAGER_H_
