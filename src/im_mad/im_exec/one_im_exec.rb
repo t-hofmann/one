@@ -165,7 +165,7 @@ class InformationManagerDriver < OpenNebulaDriver
 
     # Sends a log message to ONE. The +message+ can be multiline, it will
     # be automatically splitted by lines.
-    def log(id, message)
+    def log(id, message, not_used=true)
         in_error = false
         msg      = message.strip
         severity = 'I'

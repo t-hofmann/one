@@ -110,6 +110,8 @@ void MonitorDriverProtocol::_start_monitor(message_t msg)
 
         NebulaLog::warn("MDP", "Start monitor failed for host " +
             to_string(msg->oid()) + ": " + msg->payload());
+
+        return;
     }
 
     auto oned = hm->get_oned_driver();
