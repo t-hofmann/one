@@ -81,7 +81,7 @@ void Monitor::start()
 
     config->get("ONE_XMLRPC", one_xmlrpc);
     config->get("MESSAGE_SIZE", message_size);
-    config->get("TIMEOUT", timeout);
+    config->get("ONE_XMLRPC_TIMEOUT", timeout);
 
     Client::initialize("", one_xmlrpc, message_size, timeout);
 
@@ -207,6 +207,8 @@ void Monitor::start()
         NebulaLog::error("MON", "Error starting monitor drivers: " + error);
         return;
     }
+
+    NebulaLog::info("MON", "Shutting down monitor deamon");
 
     xmlCleanupParser();
 
